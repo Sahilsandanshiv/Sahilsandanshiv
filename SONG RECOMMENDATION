@@ -1,0 +1,48 @@
+# Import necessary libraries
+import pandas as pd
+from surprise import Dataset, Reader, SVD
+from surprise.model_selection import train_test_split
+from surprise.accuracy import rmse
+
+# Load dataset (assuming it's in a CSV format)
+data = pd.read_csv('song_dataset.csv')
+
+# Define the rating scale
+reader = Reader(rating_scale=(1, 5))
+
+# Load dataset into Surprise's data format
+dataset = Dataset.load_from_df(data[['user_id', 'song_id', 'rating']], reader)
+
+# Split dataset into train and test sets
+trainset, testset = train_test_split(dataset, test_size=0.2)
+
+# Define and train the model (SVD algorithm)
+model = SVD()
+model.fit(trainset)
+
+# Make predictions on the test set
+predictions = model.test(testset)
+
+# Evaluate the model using Root Mean Squared Error (RMSE)
+accuracy = rmse(predictions)
+print("RMSE:", accuracy)
+
+# Function to get recommendations for a user
+def get_recommendations(user_id, n=10):
+    user_songs = data[data['user_id'] == user_id]['song_id'].unique()
+    all_songs = data['song_id'].unique()
+    new_songs = [song for song in all_songs if song not in user_songs]
+    
+    predictions = []
+    for song_id in new_songs:
+        prediction = model.predict(user_id, song_id)
+        predictions.append((song_id, prediction.est))
+    
+    predictions.sort(key=lambda x: x[1], reverse=True)
+    recommended_songs = [song[0] for song in predictions[:n]]
+    return recommended_songs
+
+# Example usage:
+user_id = 123
+recommended_songs = get_recommendations(user_id)
+print("Recommended Songs for User", user_id, ":", recommended_songs)
